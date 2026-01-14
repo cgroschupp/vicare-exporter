@@ -1,21 +1,27 @@
-FROM python:3.13-alpine
+FROM ghcr.io/astral-sh/uv:0.9.25-python3.12-alpine AS builder
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
+ENV UV_PYTHON_DOWNLOADS=0
 
-ENV PIP_NO_CACHE_DIR=1
-ENV PIP_DISABLE_PIP_VERSION_CHECK=1
-ENV PATH="/root/.local/bin:${PATH}"
+WORKDIR /app
 
-COPY poetry.lock .
 COPY pyproject.toml .
+COPY uv.lock .
 
-ADD https://install.python-poetry.org get-poetry.py
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-install-project --no-dev --no-editable
 
-RUN python get-poetry.py --yes && \
-    poetry config virtualenvs.create false && \
-    poetry install --no-root --without=dev && \
-    pip uninstall -y pip && \
-    python get-poetry.py --uninstall
+ADD . /app
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-editable
 
-COPY vicare_exporter ./vicare_exporter
+FROM python:3.12-alpine
+
+
+COPY --from=builder /app/.venv /app/.venv
+
+ENV PATH=/app/.venv/bin:$PATH
+
+EXPOSE 9100
 
 CMD [ "python", "-m", "vicare_exporter" ]
