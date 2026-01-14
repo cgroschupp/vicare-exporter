@@ -82,6 +82,9 @@ class ViCareCollector(Collector):
                 device_id=feature.get("deviceId", "none"),
                 installation_id=installation_id,
             )
+            name = properties.get("name")
+            if name:
+                labels["name"] = name["value"].rstrip('\x00').strip()
             if component_label:
                 labels[component_label] = component_id
 
